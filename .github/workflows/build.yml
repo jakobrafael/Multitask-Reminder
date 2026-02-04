@@ -5,98 +5,108 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      release:
-        description: 'Create a release'
-        required: false
-        default: 'false'
-        type: boolean
 
 jobs:
-  linux-build:
-    name: Linux Build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-      - name: Install frontend dependencies
-        run: npm ci
-      - name: Build Tauri app (Linux)
-        uses: tauri-apps/tauri-action@latest
-        with:
-          args: ''
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-binaries
-          path: |
-            src-tauri/target/*/release/bundle/dmg/*.dmg
-            src-tauri/target/release/bundle/msi/*.msi
-            src-tauri/target/release/bundle/nsis/*.exe
-            src-tauri/target/release/bundle/deb/*.deb
-          if-no-files-found: ignore
-
-  windows-build:
-    name: Windows Build
+  build-windows:
     runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action@stable
+
       - name: Install frontend dependencies
         run: npm ci
-      - name: Build Tauri app (Windows)
-        uses: tauri-apps/tauri-action@latest
-        with:
-          args: ''
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
         with:
           name: windows-binaries
           path: |
-            src-tauri/target/*/release/bundle/nsis/*.exe
             src-tauri/target/release/bundle/msi/*.msi
-          if-no-files-found: ignore
+            src-tauri/target/release/bundle/nsis/*.exe
+          if-no-files-found: warn
+
+  build-linux:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Linux dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-action@stable
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Build Tauri app
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-binaries
+          path: |
+            src-tauri/target/release/bundle/deb/*.deb
+            src-tauri/target/release/bundle/appimage/*.AppImage
+          if-no-files-found: warn
 
   release:
-    needs: [linux-build, windows-build]
+    needs: [build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v') || github.event.inputs.release == 'true'
+    if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
     steps:
-      - name: Download Linux artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-          group: linux
       - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          path: artifacts
-          group: windows
+          name: windows-binaries
+          path: artifacts/windows
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-binaries
+          path: artifacts/linux
+
+      - name: List artifacts
+        run: find artifacts -type f
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
-          draft: true
+          draft: false
           generate_release_notes: true
           files: |
-            artifacts/linux/**/*.dmg
-            artifacts/linux/**/*.msi
-            artifacts/windows/**/*.exe
-            artifacts/windows/**/*.msi
+            artifacts/windows/*.msi
+            artifacts/windows/*.exe
+            artifacts/linux/*.deb
+            artifacts/linux/*.AppImage
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
