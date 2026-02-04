@@ -1,4 +1,5 @@
 @import "tailwindcss";
+/* CI run trigger: keep CI active */
 /* Trigger CI rebuild: small style note */
 
 :root {
