@@ -6,6 +6,7 @@ import "./App.css";
 function App() {
   // CI trigger: minor change to retrigger workflow
   // CI rerun marker
+  // rerun attempt: force new workflow by adding a comment
   return (
     <HashRouter>
       <Routes>
