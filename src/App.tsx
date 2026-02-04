@@ -4,6 +4,7 @@ import { Popup } from "./pages/Popup";
 import "./App.css";
 
 function App() {
+  // CI trigger: minor change to retrigger workflow
   return (
     <HashRouter>
       <Routes>
