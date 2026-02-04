@@ -27,7 +27,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
       - name: Build Tauri app (Linux)
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@latest
         with:
           args: ''
         env:
@@ -57,7 +57,7 @@ jobs:
       - name: Install frontend dependencies
         run: npm ci
       - name: Build Tauri app (Windows)
-        uses: tauri-apps/tauri-action@v1
+        uses: tauri-apps/tauri-action@latest
         with:
           args: ''
         env:
